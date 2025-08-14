@@ -1,0 +1,200 @@
+{
+  "name": "Create_food_report",
+  "nodes": [
+    {
+      "parameters": {
+        "workflowInputs": {
+          "values": [
+            {
+              "name": "data",
+              "type": "any"
+            }
+          ]
+        }
+      },
+      "id": "c055762a-8fe7-4141-a639-df2372f30060",
+      "typeVersion": 1.1,
+      "name": "When Executed by Another Workflow",
+      "type": "n8n-nodes-base.executeWorkflowTrigger",
+      "position": [
+        260,
+        340
+      ]
+    },
+    {
+      "parameters": {
+        "model": "openai/gpt-4.1-mini",
+        "options": {}
+      },
+      "type": "@n8n/n8n-nodes-langchain.lmChatOpenRouter",
+      "typeVersion": 1,
+      "position": [
+        800,
+        500
+      ],
+      "id": "3d650dcd-a6e6-42b4-ae33-2595c4e43050",
+      "name": "OpenRouter Chat Model",
+      "credentials": {
+        "openRouterApi": {
+          "id": "mSL5SDx4X3Y1BWQM",
+          "name": "OpenRouter account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "options": {}
+      },
+      "type": "@n8n/n8n-nodes-langchain.lmChatOpenRouter",
+      "typeVersion": 1,
+      "position": [
+        460,
+        500
+      ],
+      "id": "07bbbf58-ee29-44e0-a6bc-305227d238ae",
+      "name": "OpenRouter Chat Model1",
+      "credentials": {
+        "openRouterApi": {
+          "id": "mSL5SDx4X3Y1BWQM",
+          "name": "OpenRouter account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "promptType": "define",
+        "text": "={{ $json.data }}",
+        "messages": {
+          "messageValues": [
+            {
+              "message": "You are a Nutrition Chart Generator Agent. Your task is to create a valid QuickChart API URL that renders a PNG chart of nutrition data.\n\nInput will contain:\n- A list of dates (labels)\n- Three arrays with numbers: protein (grams), carbs (grams), fat (grams)\n\nRules:\n1. If the number of dates = 1 → generate a \"pie\" chart:\n   - Labels: [\"Protein (g)\", \"Carbs (g)\", \"Fat (g)\"]\n   - Data: the single day's protein, carbs, and fat values.\n   - Colors: Protein = blue, Carbs = green, Fat = red.\n2. If the number of dates > 1 → generate a \"line\" chart:\n   - X-axis = dates\n   - 3 datasets:\n     - Protein (blue line)\n     - Carbs (green line)\n     - Fat (red line)\n   - fill = false for all datasets\n3. Always return a full QuickChart API URL in this format:\n   https://quickchart.io/chart?c=<URL-encoded Chart.js JSON>\n4. The Chart.js JSON must be fully URL-encoded.\n5. Do not return anything except the final full URL.\n\nExample for 1 day (pie chart):\nhttps://quickchart.io/chart?c=%7Btype%3A%27pie%27%2Cdata%3A%7Blabels%3A%5B%27Protein%20(g)%27%2C%27Carbs%20(g)%27%2C%27Fat%20(g)%27%5D%2Cdatasets%3A%5B%7Bdata%3A%5B120%2C250%2C65%5D%2CbackgroundColor%3A%5B%27blue%27%2C%27green%27%2C%27red%27%5D%7D%5D%7D%7D\n\nExample for multiple days (line chart):\nhttps://quickchart.io/chart?c=%7Btype%3A%27line%27%2Cdata%3A%7Blabels%3A%5B%272025-08-07%27%2C%272025-08-08%27%5D%2Cdatasets%3A%5B%7Blabel%3A%27Protein%20(g)%27%2Cdata%3A%5B120%2C125%5D%2CborderColor%3A%27blue%27%2Cfill%3Afalse%7D%2C%7Blabel%3A%27Carbs%20(g)%27%2Cdata%3A%5B250%2C260%5D%2CborderColor%3A%27green%27%2Cfill%3Afalse%7D%2C%7Blabel%3A%27Fat%20(g)%27%2Cdata%3A%5B65%2C70%5D%2CborderColor%3A%27red%27%2Cfill%3Afalse%7D%5D%7D%7D\n"
+            }
+          ]
+        },
+        "batching": {}
+      },
+      "type": "@n8n/n8n-nodes-langchain.chainLlm",
+      "typeVersion": 1.7,
+      "position": [
+        480,
+        340
+      ],
+      "id": "962903c0-4358-4663-a667-98f3c1eec1d3",
+      "name": "Create graph"
+    },
+    {
+      "parameters": {
+        "promptType": "define",
+        "text": "=data = {{ $json.data }}, url = {{ $json.text }}",
+        "messages": {
+          "messageValues": [
+            {
+              "message": "You are a Nutrition Report Generator Agent.   Your task is to create a clear and concise Markdown report of a user's nutrition data without repeating the same numbers twice.  Input will contain: - Date range (start and end date, or a single date) - For each date: protein (grams), carbs (grams), fat (grams), calories - A QuickChart API URL for the chart image  Rules: 1. If only one date is provided:    - Title: \"Daily Nutrition Report\"    - Show the date    - Include a single-row Markdown table with columns: Protein (g), Carbs (g), Fat (g), Calories    - Insert the provided chart URL as an image in Markdown. 2. If multiple dates are provided:    - Title: \"Weekly Nutrition Report\"    - Show the date range    - Include a Markdown table with one row per date and columns: Date, Protein (g), Carbs (g), Fat (g), Calories    - Insert the provided chart URL as an image in Markdown. 3. The text should be concise:    - No repeating the same data in narrative form.    - At the end, provide a short 1–2 sentence summary based on trends (e.g., \"Carbs intake was stable, but fat intake increased mid-week\"). 4. The chart must be displayed using Markdown image syntax:    ![Nutrition Chart](<chart_url>) 5. Do not output anything except the final Markdown report.  Example (single day): # Daily Nutrition Report — 2025-08-13  | Protein (g) | Carbs (g) | Fat (g) | Calories | |-------------|-----------|---------|----------| | 120         | 250       | 65      | 2100     |  ![Nutrition Chart](https://quickchart.io/chart?...)  Summary: Balanced macros with moderate carb intake.  Example (week): # Weekly Nutrition Report — 2025-08-07 to 2025-08-13  | Date       | Protein (g) | Carbs (g) | Fat (g) | Calories | |------------|-------------|-----------|---------|----------| | 2025-08-07 | 120         | 250       | 65      | 2100     | | 2025-08-08 | 125         | 260       | 70      | 2150     |  ![Nutrition Chart](https://quickchart.io/chart?...)  Summary: Protein intake was consistent, while carbs slightly increased mid-week."
+            }
+          ]
+        },
+        "batching": {}
+      },
+      "type": "@n8n/n8n-nodes-langchain.chainLlm",
+      "typeVersion": 1.7,
+      "position": [
+        820,
+        340
+      ],
+      "id": "d7a4392d-9c8c-4b69-8db8-efb881b48bab",
+      "name": "Create report"
+    },
+    {
+      "parameters": {
+        "assignments": {
+          "assignments": [
+            {
+              "id": "73a40c9d-01d6-46a1-9194-f63126b0a1f2",
+              "name": "responce",
+              "value": "={{ $json.text }}",
+              "type": "string"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.4,
+      "position": [
+        1160,
+        340
+      ],
+      "id": "7b301c82-2608-44db-9bd7-6ccb175af355",
+      "name": "Responce"
+    }
+  ],
+  "pinData": {},
+  "connections": {
+    "When Executed by Another Workflow": {
+      "main": [
+        [
+          {
+            "node": "Create graph",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "OpenRouter Chat Model": {
+      "ai_languageModel": [
+        [
+          {
+            "node": "Create report",
+            "type": "ai_languageModel",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "OpenRouter Chat Model1": {
+      "ai_languageModel": [
+        [
+          {
+            "node": "Create graph",
+            "type": "ai_languageModel",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Create graph": {
+      "main": [
+        [
+          {
+            "node": "Create report",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Create report": {
+      "main": [
+        [
+          {
+            "node": "Responce",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "active": false,
+  "settings": {
+    "executionOrder": "v1"
+  },
+  "versionId": "4451388e-6949-47b4-a352-6e21662686e6",
+  "meta": {
+    "templateCredsSetupCompleted": true,
+    "instanceId": "6a800ebc29b853667ca6401bbd86fb0db83376837a93a3b0cb0d04ef52ddbf7c"
+  },
+  "id": "5eQTEmw3rc84FW27",
+  "tags": []
+}

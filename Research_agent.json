@@ -1,0 +1,189 @@
+{
+  "name": "Research agent",
+  "nodes": [
+    {
+      "parameters": {
+        "inputSource": "passthrough"
+      },
+      "type": "n8n-nodes-base.executeWorkflowTrigger",
+      "typeVersion": 1.1,
+      "position": [
+        -1580,
+        320
+      ],
+      "id": "3327f300-606e-4794-b4df-942036c03e20",
+      "name": "When Executed by Another Workflow"
+    },
+    {
+      "parameters": {
+        "promptType": "define",
+        "text": "={{ $json.query }}",
+        "options": {
+          "systemMessage": "=Research Valera — Intelligent Research Agent\nMission:\nYou are Research Valera, an intelligent and strategic research agent designed to assist your owner in finding, analyzing, and summarizing information efficiently.\n\nBehavior Rules:\n\nAlways use the Think Tool first to reflect on the user’s request and plan the next action.\n\nNever fabricate or invent information. If something is unknown, explicitly state it or re-search.\n\nFor web information retrieval, use the Tavily search tool.\n\nFor historical information and previously found knowledge, use the Qdrant Vector Store.\n\nFor memory of previous conversations, rely on the Zep Memory system.\n\nFor new text or document ingestion, use Embeddings OpenAI and store into Qdrant after splitting if necessary.\n\nAvailable Tools:\n\nTavily Search — For fresh, real-time web search queries.\n\nQdrant Vector Store — For searching previously stored research results.\n\nZep Memory — For recalling previous conversation and research sessions.\n\nOpenAI Embeddings + Qdrant — For storing and managing complex documents and large information pieces.\n\nOperational Flow:\n\nThink carefully about the user's request (via Think Tool).\n\nDecide whether to search externally (Tavily) or internally (Qdrant / Zep).\n\nSearch or retrieve the information using the appropriate tool.\n\nSummarize the information professionally and clearly.\n\nStore useful new knowledge back into Qdrant for future reference.\n\nImportant Reminders:\n\nMaintain high accuracy, transparency, and reliability in all outputs.\n\nAlways favor efficiency and clarity in information delivery.\n\nContinuously learn from searches and improve future response quality.\n\nRespect the owner's preferences, language, and information needs at all times.\n\nCurrent Date and Time: {{ $now }}"
+        }
+      },
+      "type": "@n8n/n8n-nodes-langchain.agent",
+      "typeVersion": 1.8,
+      "position": [
+        -1260,
+        320
+      ],
+      "id": "4ef1e11a-feb8-4402-a1ff-8ef21064c11d",
+      "name": "AI Agent",
+      "onError": "continueErrorOutput"
+    },
+    {
+      "parameters": {
+        "toolDescription": "Use this tool to search the internet",
+        "method": "POST",
+        "url": "https://api.tavily.com/search",
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "{\n    \"api_key\": \"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\",\n    \"query\": \"{searchTerm}\",\n    \"search_depth\": \"basic\",\n    \"include_answer\": true,\n    \"topic\": \"general\",\n    \"include_raw_content\": true,\n    \"max_results\": 5\n} ",
+        "placeholderDefinitions": {
+          "values": [
+            {
+              "name": "searchTerm",
+              "description": "What the user has requested to write a blog about",
+              "type": "string"
+            }
+          ]
+        }
+      },
+      "type": "@n8n/n8n-nodes-langchain.toolHttpRequest",
+      "typeVersion": 1.1,
+      "position": [
+        -1140,
+        560
+      ],
+      "id": "0bba55b2-8b35-436b-a2a4-f7fa162a30d2",
+      "name": "Tavily"
+    },
+    {
+      "parameters": {
+        "sessionIdType": "customKey",
+        "sessionKey": "research_valera"
+      },
+      "type": "@n8n/n8n-nodes-langchain.memoryZep",
+      "typeVersion": 1.3,
+      "position": [
+        -1260,
+        540
+      ],
+      "id": "506156b6-e180-4447-bdb2-97ea56ac3091",
+      "name": "Zep",
+      "credentials": {
+        "zepApi": {
+          "id": "uI23wd1kQlqgujHe",
+          "name": "Zep Api account"
+        }
+      }
+    },
+    {
+      "parameters": {},
+      "type": "@n8n/n8n-nodes-langchain.toolThink",
+      "typeVersion": 1,
+      "position": [
+        -1000,
+        540
+      ],
+      "id": "0fd84018-23a9-4fde-81ac-066f84b72386",
+      "name": "Think"
+    },
+    {
+      "parameters": {
+        "model": "deepseek/deepseek-chat-v3-0324:free",
+        "options": {}
+      },
+      "type": "@n8n/n8n-nodes-langchain.lmChatOpenRouter",
+      "typeVersion": 1,
+      "position": [
+        -1380,
+        520
+      ],
+      "id": "02c216f6-c2b3-4d15-af46-9ef7479d920b",
+      "name": "OpenRouter Chat Model",
+      "credentials": {
+        "openRouterApi": {
+          "id": "mSL5SDx4X3Y1BWQM",
+          "name": "OpenRouter account"
+        }
+      }
+    }
+  ],
+  "pinData": {},
+  "connections": {
+    "When Executed by Another Workflow": {
+      "main": [
+        [
+          {
+            "node": "AI Agent",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Tavily": {
+      "ai_tool": [
+        [
+          {
+            "node": "AI Agent",
+            "type": "ai_tool",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Zep": {
+      "ai_memory": [
+        [
+          {
+            "node": "AI Agent",
+            "type": "ai_memory",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "AI Agent": {
+      "main": [
+        [],
+        []
+      ]
+    },
+    "Think": {
+      "ai_tool": [
+        [
+          {
+            "node": "AI Agent",
+            "type": "ai_tool",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "OpenRouter Chat Model": {
+      "ai_languageModel": [
+        [
+          {
+            "node": "AI Agent",
+            "type": "ai_languageModel",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "active": false,
+  "settings": {
+    "executionOrder": "v1"
+  },
+  "versionId": "a32b7e9e-a81f-4229-8513-783a970e4018",
+  "meta": {
+    "templateCredsSetupCompleted": true,
+    "instanceId": "6a800ebc29b853667ca6401bbd86fb0db83376837a93a3b0cb0d04ef52ddbf7c"
+  },
+  "id": "JS5Wrd2d5Zo8zSbn",
+  "tags": []
+}

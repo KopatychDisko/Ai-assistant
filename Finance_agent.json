@@ -1,0 +1,459 @@
+{
+  "name": "Finance agent",
+  "nodes": [
+    {
+      "parameters": {
+        "inputSource": "passthrough"
+      },
+      "type": "n8n-nodes-base.executeWorkflowTrigger",
+      "typeVersion": 1.1,
+      "position": [
+        -720,
+        -200
+      ],
+      "id": "7c85356a-a849-4ec2-bcf0-1835cd402e8f",
+      "name": "When Executed by Another Workflow"
+    },
+    {
+      "parameters": {
+        "assignments": {
+          "assignments": [
+            {
+              "id": "39c2f302-03be-4464-a17a-d7cc481d6d44",
+              "name": "=response",
+              "value": "={{ $json.pageContent }}",
+              "type": "string"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "id": "95f0977a-03c6-43bb-b2af-5aa7e8beffd0",
+      "name": "Success1",
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.4,
+      "position": [
+        1500,
+        -180
+      ]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "https://api.zenmoney.ru/v8/diff/",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "Authorization",
+              "value": "Bearer JTWwvZwVwVpohdEqSStt3x6C2kVKoc"
+            },
+            {
+              "name": "Content-Type",
+              "value": "application/json"
+            }
+          ]
+        },
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={\n  \"currentClientTimestamp\": {{ Math.floor(Date.now() / 1000) }},\n  \"serverTimestamp\": 0,\n  \"forceFetch\": [\n    \"account\",\n    \"transaction\"\n  ]\n}\n",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        -440,
+        -60
+      ],
+      "id": "da213d70-d929-4593-88b3-49d761307a09",
+      "name": "HTTP Request1"
+    },
+    {
+      "parameters": {
+        "jsCode": "const today = new Date();\nconst monthStr = today.toISOString().slice(0, 7); // YYYY-MM\nconst todayStr = today.toISOString().split('T')[0];\n\nlet balance = 0;\nlet incomeToday = 0;\nlet expenseToday = 0;\nlet incomeMonth = 0;\nlet expenseMonth = 0;\nlet transactionsToday = 0;\nlet transactionsMonth = 0;\nlet activeDaysSet = new Set();\n\n// Определяем последние 5 дней\nconst recentDaysSet = new Set();\nfor (let i = 0; i < 5; i++) {\n  const date = new Date();\n  date.setDate(today.getDate() - i);\n  recentDaysSet.add(date.toISOString().split('T')[0]);\n}\n\nlet dailyData = {}; // Здесь теперь будет только 5 дней\n\n// Баланс по счетам\nfor (const acc of items[0].json.account || []) {\n  if (acc.inBalance) {\n    balance += acc.balance || 0;\n  }\n}\n\n// Транзакции\nfor (const tx of items[0].json.transaction || []) {\n  if (tx.deleted) continue;\n\n  const date = tx.date;\n  const income = tx.income || 0;\n  const outcome = tx.outcome || 0;\n\n  if (recentDaysSet.has(date)) {\n    if (!dailyData[date]) {\n      dailyData[date] = {\n        income: 0,\n        outcome: 0,\n        transactions: 0,\n        transactionDetails: []\n      };\n    }\n\n    dailyData[date].income += income;\n    dailyData[date].outcome += outcome;\n    dailyData[date].transactions += 1;\n\n    const transactionDetail = {};\n    if (tx.payee) transactionDetail.payee = tx.payee;\n    if (tx.comment) transactionDetail.comment = tx.comment;\n    if (tx.category) transactionDetail.category = tx.category;\n    if (income > 0) transactionDetail.income = income;\n    if (outcome > 0) transactionDetail.outcome = outcome;\n\n    if (Object.keys(transactionDetail).length > 0) {\n      dailyData[date].transactionDetails.push(transactionDetail);\n    }\n  }\n\n  if (date === todayStr) {\n    incomeToday += income;\n    expenseToday += outcome;\n    transactionsToday++;\n  }\n\n  if (date.startsWith(monthStr)) {\n    incomeMonth += income;\n    expenseMonth += outcome;\n    transactionsMonth++;\n    activeDaysSet.add(date);\n  }\n}\n\nconst activeDays = activeDaysSet.size;\nconst avgDailyExpense = activeDays ? (expenseMonth / activeDays) : 0;\nconst avgDailyIncome = activeDays ? (incomeMonth / activeDays) : 0;\nconst netResultMonth = incomeMonth - expenseMonth;\nconst expenseToIncomeRatio = incomeMonth ? (expenseMonth / incomeMonth) * 100 : 0;\n\n// === Добавляем вопрос пользователя ===\nconst userQuestion = items[0].json.query || '';\n\nreturn [\n  {\n    json: {\n      userQuestion,\n      financeData: {\n        balance,\n        incomeToday,\n        expenseToday,\n        incomeMonth,\n        expenseMonth,\n        transactionsToday,\n        transactionsMonth,\n        activeDays,\n        avgDailyExpense: Number(avgDailyExpense.toFixed(2)),\n        avgDailyIncome: Number(avgDailyIncome.toFixed(2)),\n        netResultMonth: Number(netResultMonth.toFixed(2)),\n        expenseToIncomeRatio: Number(expenseToIncomeRatio.toFixed(2)),\n        dailyData\n      }\n    }\n  }\n];"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        -60,
+        -180
+      ],
+      "id": "0d0beaac-f375-416b-a429-0ec2a2b46a07",
+      "name": "analizetranz1"
+    },
+    {
+      "parameters": {
+        "sessionIdType": "customKey",
+        "sessionKey": "finance_valera"
+      },
+      "type": "@n8n/n8n-nodes-langchain.memoryZep",
+      "typeVersion": 1.3,
+      "position": [
+        240,
+        40
+      ],
+      "id": "f848338e-659b-4465-a6ec-9abdfb29693c",
+      "name": "Zepmemory1",
+      "credentials": {
+        "zepApi": {
+          "id": "uI23wd1kQlqgujHe",
+          "name": "Zep Api account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "options": {}
+      },
+      "type": "@n8n/n8n-nodes-langchain.documentDefaultDataLoader",
+      "typeVersion": 1,
+      "position": [
+        1120,
+        60
+      ],
+      "id": "5fb330ff-a3c8-4488-bc4c-350f414a0fa9",
+      "name": "Default Data Loader1"
+    },
+    {
+      "parameters": {
+        "mode": "insert",
+        "qdrantCollection": {
+          "__rl": true,
+          "value": "finance_jarvis",
+          "mode": "list",
+          "cachedResultName": "finance_jarvis"
+        },
+        "options": {}
+      },
+      "type": "@n8n/n8n-nodes-langchain.vectorStoreQdrant",
+      "typeVersion": 1.1,
+      "position": [
+        1020,
+        -180
+      ],
+      "id": "cf4f2d35-2260-4d5d-9ed3-16c0b9d81427",
+      "name": "Store Embedding1",
+      "credentials": {
+        "qdrantApi": {
+          "id": "JYWFyIjomXR6qCDV",
+          "name": "QdrantApi account 2"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "chunkOverlap": 200
+      },
+      "type": "@n8n/n8n-nodes-langchain.textSplitterTokenSplitter",
+      "typeVersion": 1,
+      "position": [
+        1220,
+        260
+      ],
+      "id": "8980d35a-d5b9-48dd-98e6-aa366f8d79a0",
+      "name": "Token Splitter1"
+    },
+    {
+      "parameters": {
+        "mode": "retrieve-as-tool",
+        "toolName": "finance_jarvis",
+        "toolDescription": "Financial recommendation database for analyzing previous reports.",
+        "qdrantCollection": {
+          "__rl": true,
+          "value": "finance_jarvis",
+          "mode": "list",
+          "cachedResultName": "finance_jarvis"
+        },
+        "options": {}
+      },
+      "type": "@n8n/n8n-nodes-langchain.vectorStoreQdrant",
+      "typeVersion": 1.1,
+      "position": [
+        360,
+        60
+      ],
+      "id": "c996ea09-10e2-420b-a5f4-711eb429dc1c",
+      "name": "Vector Store1",
+      "credentials": {
+        "qdrantApi": {
+          "id": "JYWFyIjomXR6qCDV",
+          "name": "QdrantApi account 2"
+        }
+      }
+    },
+    {
+      "parameters": {},
+      "type": "@n8n/n8n-nodes-langchain.toolThink",
+      "typeVersion": 1,
+      "position": [
+        660,
+        40
+      ],
+      "id": "ac697522-8462-46b2-b6c5-5ca2013c4bc5",
+      "name": "Think1"
+    },
+    {
+      "parameters": {
+        "promptType": "define",
+        "text": "=You are a financial analysis assistant. I will provide you with structured personal finance data, including balance, income, expenses, number of transactions, and average daily spending.\n\nDate and time of this analysis:\n{{ new Date().toLocaleString('ru-RU', { timeZone: 'Asia/Yekaterinburg', hour: '2-digit', minute: '2-digit', day: '2-digit', month: '2-digit', year: 'numeric' }) }}\n\nInput Data:\n{{ JSON.stringify($json, null, 2) }}\n\n",
+        "options": {
+          "systemMessage": "=Finance Jarvis — Personal Financial Analysis Assistant\n\nMission:\nYou are a professional financial assistant.\nYou receive structured finance data: balance, income, expenses, transactions, average daily spending, and detailed 5-day transaction history.\n\nDate and Time of Analysis:\n{{ new Date().toLocaleString('ru-RU', { timeZone: 'Asia/Yekaterinburg', hour: '2-digit', minute: '2-digit', day: '2-digit', month: '2-digit', year: 'numeric' }) }}\n\nResponsibilities:\n\nAlways start with Think Tool to reflect and plan.\n\nAnalyze the user's question first.\n\nUse \"financeData\" object for answers.\n\nFor specific dates (e.g., \"yesterday's expenses\"), use \"dailyData\" (only 5 recent days).\n\nIf available, list transaction payees and amounts.\n\nFor broader questions, use balance, incomeMonth, expenseMonth, netResultMonth, expenseToIncomeRatio.\n\nRetrieve context if needed from Qdrant Vector Store.\n\nStart each answer with the current date and time.\n\nProvide short, clear, and valuable answers fully in Russian.\n\nRound all numbers.\n\nNever repeat raw input data.\n\nAvoid unnecessary text.\n\nAvailable Tools:\n\nThink Tool\n\nQdrant Vector Store\n\nZep Memory\n\nOpenAI Embeddings\n\nInput Example:\n{\n  \"userQuestion\": \"...\",\n  \"financeData\": {\n    \"balance\": ...,\n    \"incomeToday\": ...,\n    \"expenseToday\": ...,\n    \"incomeMonth\": ...,\n    \"expenseMonth\": ...,\n    \"transactionsToday\": ...,\n    \"transactionsMonth\": ...,\n    \"activeDays\": ...,\n    \"avgDailyExpense\": ...,\n    \"avgDailyIncome\": ...,\n    \"netResultMonth\": ...,\n    \"expenseToIncomeRatio\": ...,\n    \"dailyData\": {\n      \"YYYY-MM-DD\": {\n        \"income\": ...,\n        \"outcome\": ...,\n        \"transactions\": ...,\n        \"transactionDetails\": [\n          { \"payee\": \"...\", \"outcome\": ..., \"income\": ... }\n        ]\n      }\n    }\n  }\n}\n\nImportant Rules:\n\nAlways Think first.\n\nUse only the needed parts of data.\n\nKeep answers compact and structured."
+        }
+      },
+      "type": "@n8n/n8n-nodes-langchain.agent",
+      "typeVersion": 1.8,
+      "position": [
+        280,
+        -220
+      ],
+      "id": "0d4386da-c07a-4cc2-9c9d-00d7c19194a4",
+      "name": "AI Agent"
+    },
+    {
+      "parameters": {
+        "mode": "combine",
+        "combineBy": "combineAll",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.merge",
+      "typeVersion": 3.1,
+      "position": [
+        -240,
+        -180
+      ],
+      "id": "c98e2368-fc4c-4cf0-bf8b-d521c6d66836",
+      "name": "Merge1"
+    },
+    {
+      "parameters": {
+        "options": {}
+      },
+      "type": "@n8n/n8n-nodes-langchain.embeddingsHuggingFaceInference",
+      "typeVersion": 1,
+      "position": [
+        460,
+        280
+      ],
+      "id": "ceef00b1-2c73-4ad8-9ae5-a44a9bf355e1",
+      "name": "Embeddings HuggingFace Inference",
+      "credentials": {
+        "huggingFaceApi": {
+          "id": "cFlRGXneiD6nyy90",
+          "name": "HuggingFaceApi account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "options": {}
+      },
+      "type": "@n8n/n8n-nodes-langchain.embeddingsHuggingFaceInference",
+      "typeVersion": 1,
+      "position": [
+        1020,
+        40
+      ],
+      "id": "fb574244-8279-4938-ba9a-ab17cb12b8cc",
+      "name": "Embeddings HuggingFace Inference1",
+      "credentials": {
+        "huggingFaceApi": {
+          "id": "cFlRGXneiD6nyy90",
+          "name": "HuggingFaceApi account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "model": "deepseek/deepseek-chat-v3-0324:free",
+        "options": {}
+      },
+      "type": "@n8n/n8n-nodes-langchain.lmChatOpenRouter",
+      "typeVersion": 1,
+      "position": [
+        120,
+        20
+      ],
+      "id": "f6396763-4318-4da9-b9e8-d0d88bc0ce57",
+      "name": "OpenRouter Chat Model",
+      "credentials": {
+        "openRouterApi": {
+          "id": "mSL5SDx4X3Y1BWQM",
+          "name": "OpenRouter account"
+        }
+      }
+    }
+  ],
+  "pinData": {},
+  "connections": {
+    "HTTP Request1": {
+      "main": [
+        [
+          {
+            "node": "Merge1",
+            "type": "main",
+            "index": 1
+          }
+        ]
+      ]
+    },
+    "analizetranz1": {
+      "main": [
+        [
+          {
+            "node": "AI Agent",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Zepmemory1": {
+      "ai_memory": [
+        [
+          {
+            "node": "AI Agent",
+            "type": "ai_memory",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Default Data Loader1": {
+      "ai_document": [
+        [
+          {
+            "node": "Store Embedding1",
+            "type": "ai_document",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Store Embedding1": {
+      "main": [
+        [
+          {
+            "node": "Success1",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Token Splitter1": {
+      "ai_textSplitter": [
+        [
+          {
+            "node": "Default Data Loader1",
+            "type": "ai_textSplitter",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Vector Store1": {
+      "ai_tool": [
+        [
+          {
+            "node": "AI Agent",
+            "type": "ai_tool",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Think1": {
+      "ai_tool": [
+        [
+          {
+            "node": "AI Agent",
+            "type": "ai_tool",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "AI Agent": {
+      "main": [
+        [
+          {
+            "node": "Store Embedding1",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Merge1": {
+      "main": [
+        [
+          {
+            "node": "analizetranz1",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "When Executed by Another Workflow": {
+      "main": [
+        [
+          {
+            "node": "Merge1",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "HTTP Request1",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Embeddings HuggingFace Inference": {
+      "ai_embedding": [
+        [
+          {
+            "node": "Vector Store1",
+            "type": "ai_embedding",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Embeddings HuggingFace Inference1": {
+      "ai_embedding": [
+        [
+          {
+            "node": "Store Embedding1",
+            "type": "ai_embedding",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "OpenRouter Chat Model": {
+      "ai_languageModel": [
+        [
+          {
+            "node": "AI Agent",
+            "type": "ai_languageModel",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "active": false,
+  "settings": {
+    "executionOrder": "v1"
+  },
+  "versionId": "d10aceae-3ee0-4060-9014-d80537762838",
+  "meta": {
+    "templateCredsSetupCompleted": true,
+    "instanceId": "6a800ebc29b853667ca6401bbd86fb0db83376837a93a3b0cb0d04ef52ddbf7c"
+  },
+  "id": "nltSvDzLzRwOB9wQ",
+  "tags": []
+}

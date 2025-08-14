@@ -1,0 +1,524 @@
+{
+  "name": "Food assistant",
+  "nodes": [
+    {
+      "parameters": {
+        "promptType": "define",
+        "text": "={{ $('When Executed by Another Workflow').item.json.query }}",
+        "options": {
+          "systemMessage": "=You are a Nutrition Assistant Agent operating as a sub-agent under a supervisor agent. Your responsibilities include managing users’ nutrition data, calculating calories, and generating reports. Follow these rules strictly:\n\nCore Responsibilities:\n\nCalorie Calculation\n\nCalculate calories and macronutrients only via the provided Nutrition API tool.\n\nDo not estimate or invent values; always use the API results.\n\nHandle multiple foods in a single meal and compute totals for calories, protein, carbs, and fat.\n\nSupabase Data Management\n\nStore and update user data in Supabase.\n\nThere is a User table containing personal details and optimal daily calorie targets.\n\nThere is a Nutrition History table storing daily records of calories, protein, carbs, and fats for the last 7 days.\n\nEnsure updates maintain the 7-day history limit.\n\nReports\n\nUse tool Create report for creaing report (send him all need data)\n\nIf you need create report - send it in output. If you need manipulate date - tell us what you have done.\n\nData Handling Rules\n\nNever modify user personal data except for updating nutrition records.\n\nValidate all API responses before saving to Supabase.\n\n\nCurrent date: {{ $now }}\n\nAdditional Rule for Supabase Data Updates:\n\nWhen updating the Nutrition History table in Supabase:\n\nAlways record data only for the current date (today).\n\nBefore writing data:\n\nQuery the Nutrition History table for the given  today date.\n\nIf a row for today already exists → update it with the new totals.\n\nIf no row exists for today → create a new record with the date, totals for calories, protein, carbs, and fat.\n\nUse the provided Supabase tools for all database operations; do not write directly without them.\n\nEnsure the 7-day history rule is respected — delete the oldest entry if adding a new one makes more than 7 days of records.\n\nBefore updatinf info - get old data and this to new.\n"
+        }
+      },
+      "type": "@n8n/n8n-nodes-langchain.agent",
+      "typeVersion": 2,
+      "position": [
+        1000,
+        -400
+      ],
+      "id": "165f663b-1345-45c3-a533-d7f2415c71c5",
+      "name": "AI Agent"
+    },
+    {
+      "parameters": {
+        "workflowInputs": {
+          "values": [
+            {
+              "name": "query"
+            },
+            {
+              "name": "telegram_id",
+              "type": "number"
+            }
+          ]
+        }
+      },
+      "type": "n8n-nodes-base.executeWorkflowTrigger",
+      "typeVersion": 1.1,
+      "position": [
+        800,
+        -400
+      ],
+      "id": "11fc56bb-5963-44a7-97d6-b3285d414903",
+      "name": "When Executed by Another Workflow"
+    },
+    {
+      "parameters": {
+        "model": "openai/gpt-4.1-mini",
+        "options": {}
+      },
+      "type": "@n8n/n8n-nodes-langchain.lmChatOpenRouter",
+      "typeVersion": 1,
+      "position": [
+        900,
+        -160
+      ],
+      "id": "f1ec83fa-5ce7-49e4-aa66-32d05c51e813",
+      "name": "OpenRouter Chat Model",
+      "credentials": {
+        "openRouterApi": {
+          "id": "mSL5SDx4X3Y1BWQM",
+          "name": "OpenRouter account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "sessionIdType": "customKey",
+        "sessionKey": "jarvis"
+      },
+      "type": "@n8n/n8n-nodes-langchain.memoryZep",
+      "typeVersion": 1.3,
+      "position": [
+        1020,
+        -140
+      ],
+      "id": "18427f36-9910-4979-85ce-c0cbb84c03dd",
+      "name": "Zep",
+      "credentials": {
+        "zepApi": {
+          "id": "uI23wd1kQlqgujHe",
+          "name": "Zep Api account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "assignments": {
+          "assignments": [
+            {
+              "id": "03ed7dac-5c85-4261-be06-9d1565a24dd2",
+              "name": "responce",
+              "value": "={{ $json.output }}",
+              "type": "string"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.4,
+      "position": [
+        1380,
+        -400
+      ],
+      "id": "19dbef76-00be-4aed-bfb8-2824b8c500aa",
+      "name": "output"
+    },
+    {
+      "parameters": {
+        "toolDescription": "Nutrition API",
+        "method": "POST",
+        "url": "https://trackapi.nutritionix.com/v2/natural/nutrients",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "x-app-id",
+              "value": "74c1679f"
+            },
+            {
+              "name": "x-app-key",
+              "value": "c2a3e53f70b28446ac33360d04c0ceac"
+            },
+            {
+              "name": "Content-Type",
+              "value": "application/json"
+            }
+          ]
+        },
+        "sendBody": true,
+        "bodyParameters": {
+          "parameters": [
+            {
+              "name": "query",
+              "value": "={{ /*n8n-auto-generated-fromAI-override*/ $fromAI('parameters0_Value', ``, 'string') }}"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.httpRequestTool",
+      "typeVersion": 4.2,
+      "position": [
+        1160,
+        -60
+      ],
+      "id": "3ddcbeae-f0e8-48fb-b6bd-2ab8ae718916",
+      "name": "Nutrition API"
+    },
+    {
+      "parameters": {
+        "tableId": "Daily calories",
+        "fieldsUi": {
+          "fieldValues": [
+            {
+              "fieldId": "calories",
+              "fieldValue": "={{ /*n8n-auto-generated-fromAI-override*/ $fromAI('fieldValues0_Field_Value', `Count calories per day`, 'string') }}"
+            },
+            {
+              "fieldId": "proteins",
+              "fieldValue": "={{ /*n8n-auto-generated-fromAI-override*/ $fromAI('fieldValues1_Field_Value', `Count proteins per day`, 'string') }}"
+            },
+            {
+              "fieldId": "carbs",
+              "fieldValue": "={{ /*n8n-auto-generated-fromAI-override*/ $fromAI('fieldValues2_Field_Value', `Count carbs per day`, 'string') }}"
+            },
+            {
+              "fieldId": "fats",
+              "fieldValue": "={{ /*n8n-auto-generated-fromAI-override*/ $fromAI('fieldValues3_Field_Value', `Count carbs per day`, 'string') }}"
+            },
+            {
+              "fieldId": "created_at",
+              "fieldValue": "={{ $today }}"
+            }
+          ]
+        }
+      },
+      "type": "n8n-nodes-base.supabaseTool",
+      "typeVersion": 1,
+      "position": [
+        1300,
+        -140
+      ],
+      "id": "81ae582d-f5b9-4ee4-bef4-d24d00628439",
+      "name": "New daily calories",
+      "credentials": {
+        "supabaseApi": {
+          "id": "dawkLOxbOM0GuJOv",
+          "name": "Supabase account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "descriptionType": "manual",
+        "toolDescription": "Update a row in Supabase. Before use it - get old data.",
+        "operation": "update",
+        "tableId": "Daily calories",
+        "filters": {
+          "conditions": [
+            {
+              "keyName": "created_at",
+              "condition": "eq",
+              "keyValue": "={{ $today }}"
+            }
+          ]
+        },
+        "fieldsUi": {
+          "fieldValues": [
+            {
+              "fieldId": "calories",
+              "fieldValue": "={{ /*n8n-auto-generated-fromAI-override*/ $fromAI('fieldValues0_Field_Value', ``, 'string') }}"
+            },
+            {
+              "fieldId": "proteins",
+              "fieldValue": "={{ /*n8n-auto-generated-fromAI-override*/ $fromAI('fieldValues1_Field_Value', ``, 'string') }}"
+            },
+            {
+              "fieldId": "carbs",
+              "fieldValue": "={{ /*n8n-auto-generated-fromAI-override*/ $fromAI('fieldValues2_Field_Value', ``, 'string') }}"
+            },
+            {
+              "fieldId": "fats",
+              "fieldValue": "={{ /*n8n-auto-generated-fromAI-override*/ $fromAI('fieldValues3_Field_Value', ``, 'string') }}"
+            }
+          ]
+        }
+      },
+      "type": "n8n-nodes-base.supabaseTool",
+      "typeVersion": 1,
+      "position": [
+        1500,
+        20
+      ],
+      "id": "f00cc09a-b050-46cf-8d68-80ff585421e5",
+      "name": "Update daily calories",
+      "credentials": {
+        "supabaseApi": {
+          "id": "dawkLOxbOM0GuJOv",
+          "name": "Supabase account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "operation": "get",
+        "tableId": "Daily calories",
+        "filters": {
+          "conditions": [
+            {
+              "keyName": "created_at",
+              "keyValue": "={{ $today }}"
+            }
+          ]
+        }
+      },
+      "type": "n8n-nodes-base.supabaseTool",
+      "typeVersion": 1,
+      "position": [
+        1440,
+        -120
+      ],
+      "id": "4861a36d-7953-424a-9460-0dca4924b660",
+      "name": "Get today daily calories",
+      "credentials": {
+        "supabaseApi": {
+          "id": "dawkLOxbOM0GuJOv",
+          "name": "Supabase account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "descriptionType": "manual",
+        "toolDescription": "Update a calories per day limit for user",
+        "operation": "update",
+        "tableId": "User",
+        "filters": {
+          "conditions": [
+            {
+              "keyName": "telegram_id",
+              "condition": "={{ $('Edit Fields').item.json.telegram_id }}",
+              "keyValue": "={{ /*n8n-auto-generated-fromAI-override*/ $fromAI('conditions0_Field_Value', ``, 'string') }}"
+            }
+          ]
+        },
+        "fieldsUi": {
+          "fieldValues": [
+            {
+              "fieldId": "target_calories",
+              "fieldValue": "={{ /*n8n-auto-generated-fromAI-override*/ $fromAI('fieldValues0_Field_Value', ``, 'string') }}"
+            }
+          ]
+        }
+      },
+      "type": "n8n-nodes-base.supabaseTool",
+      "typeVersion": 1,
+      "position": [
+        1580,
+        -120
+      ],
+      "id": "f985769e-ac21-402e-9bcb-b7a1acdd4d88",
+      "name": "Change target calories",
+      "credentials": {
+        "supabaseApi": {
+          "id": "dawkLOxbOM0GuJOv",
+          "name": "Supabase account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "operation": "getAll",
+        "tableId": "Daily calories",
+        "limit": 7,
+        "matchType": "allFilters",
+        "filters": {
+          "conditions": [
+            {
+              "keyName": "created_at",
+              "condition": "lte",
+              "keyValue": "={{ $today }}"
+            },
+            {
+              "keyName": "created_at",
+              "condition": "gte",
+              "keyValue": "={{ /*n8n-auto-generated-fromAI-override*/ $fromAI('conditions1_Field_Value', `date week ago`, 'string') }}"
+            }
+          ]
+        }
+      },
+      "type": "n8n-nodes-base.supabaseTool",
+      "typeVersion": 1,
+      "position": [
+        1340,
+        20
+      ],
+      "id": "cbe3e7e6-5c9d-489c-9674-63aa2334ed86",
+      "name": "Get weekly data",
+      "credentials": {
+        "supabaseApi": {
+          "id": "dawkLOxbOM0GuJOv",
+          "name": "Supabase account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "description": "Use this to create report per day or per week",
+        "workflowId": {
+          "__rl": true,
+          "value": "5eQTEmw3rc84FW27",
+          "mode": "list",
+          "cachedResultName": "Create_food_report"
+        },
+        "workflowInputs": {
+          "mappingMode": "defineBelow",
+          "value": {
+            "data": "={{ /*n8n-auto-generated-fromAI-override*/ $fromAI('data', ``, 'string') }}"
+          },
+          "matchingColumns": [
+            "data"
+          ],
+          "schema": [
+            {
+              "id": "data",
+              "displayName": "data",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "canBeUsedToMatch": true,
+              "removed": false
+            }
+          ],
+          "attemptToConvertTypes": false,
+          "convertFieldsToString": false
+        }
+      },
+      "type": "@n8n/n8n-nodes-langchain.toolWorkflow",
+      "typeVersion": 2.2,
+      "position": [
+        1660,
+        120
+      ],
+      "id": "dca702c7-9096-42b5-8d54-9215a978e14d",
+      "name": "Create report"
+    }
+  ],
+  "pinData": {},
+  "connections": {
+    "When Executed by Another Workflow": {
+      "main": [
+        [
+          {
+            "node": "AI Agent",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "OpenRouter Chat Model": {
+      "ai_languageModel": [
+        [
+          {
+            "node": "AI Agent",
+            "type": "ai_languageModel",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Zep": {
+      "ai_memory": [
+        [
+          {
+            "node": "AI Agent",
+            "type": "ai_memory",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "AI Agent": {
+      "main": [
+        [
+          {
+            "node": "output",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Nutrition API": {
+      "ai_tool": [
+        [
+          {
+            "node": "AI Agent",
+            "type": "ai_tool",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "New daily calories": {
+      "ai_tool": [
+        [
+          {
+            "node": "AI Agent",
+            "type": "ai_tool",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Update daily calories": {
+      "ai_tool": [
+        [
+          {
+            "node": "AI Agent",
+            "type": "ai_tool",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Get today daily calories": {
+      "ai_tool": [
+        [
+          {
+            "node": "AI Agent",
+            "type": "ai_tool",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Change target calories": {
+      "ai_tool": [
+        [
+          {
+            "node": "AI Agent",
+            "type": "ai_tool",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Get weekly data": {
+      "ai_tool": [
+        [
+          {
+            "node": "AI Agent",
+            "type": "ai_tool",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Create report": {
+      "ai_tool": [
+        [
+          {
+            "node": "AI Agent",
+            "type": "ai_tool",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "active": false,
+  "settings": {
+    "executionOrder": "v1"
+  },
+  "versionId": "4e809be6-62d2-414b-9f14-d939f112ec4c",
+  "meta": {
+    "templateId": "self-building-ai-agent",
+    "templateCredsSetupCompleted": true,
+    "instanceId": "6a800ebc29b853667ca6401bbd86fb0db83376837a93a3b0cb0d04ef52ddbf7c"
+  },
+  "id": "DTH75aZc2rC6WU35",
+  "tags": []
+}
