@@ -1,4 +1,4 @@
-# Valera‑assistant
+# Ai‑assistant
 
 This repository contains JSON definitions for multiple specialized agents used in **n8n** workflows.  
 Each agent is a self-contained tool designed to handle a specific type of task, allowing flexible and modular automation.
